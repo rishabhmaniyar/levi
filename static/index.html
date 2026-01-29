@@ -140,6 +140,36 @@
             color: white;
         }
 
+        .play-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .play-btn:hover {
+            background: rgba(233, 69, 96, 0.5);
+            transform: scale(1.1);
+        }
+
+        .play-btn.playing {
+            background: #e94560;
+        }
+
+        .play-btn svg {
+            width: 14px;
+            height: 14px;
+            color: white;
+        }
+
         .music-info {
             flex: 1;
             min-width: 0;
@@ -161,6 +191,95 @@
         .empty-state {
             text-align: center;
             padding: 2rem;
+            color: #666;
+        }
+
+        /* Audio Player */
+        .audio-player {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            display: none;
+        }
+
+        .audio-player.visible {
+            display: block;
+        }
+
+        .audio-player .now-playing {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+            margin-bottom: 0.5rem;
+        }
+
+        .audio-player .track-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 0.75rem;
+            color: #e94560;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .player-btn {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .player-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .player-btn svg {
+            width: 18px;
+            height: 18px;
+            color: white;
+        }
+
+        .progress-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
             color: #666;
         }
 
@@ -378,6 +497,32 @@
                         <p>No music uploaded yet</p>
                     </div>
                 </div>
+
+                <!-- Audio Player -->
+                <div class="audio-player" id="audioPlayer">
+                    <div class="now-playing">Now Playing</div>
+                    <div class="track-name" id="playerTrackName">-</div>
+                    <div class="player-controls">
+                        <button class="player-btn" id="playerPlayBtn">
+                            <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
+                        </button>
+                        <div class="progress-container">
+                            <div class="progress-bar" id="progressBar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="time-display">
+                                <span id="currentTime">0:00</span>
+                                <span id="duration">0:00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <audio id="audioElement"></audio>
             </div>
 
             <!-- Main Panel -->
@@ -418,6 +563,7 @@
         
         let selectedTrack = null;
         let currentImageUrl = null;
+        let currentlyPlayingKey = null;
 
         // DOM Elements
         const uploadZone = document.getElementById('uploadZone');
@@ -429,6 +575,18 @@
         const regenerateBtn = document.getElementById('regenerateBtn');
         const featuresDiv = document.getElementById('features');
         const toast = document.getElementById('toast');
+
+        // Audio Player Elements
+        const audioPlayer = document.getElementById('audioPlayer');
+        const audioElement = document.getElementById('audioElement');
+        const playerTrackName = document.getElementById('playerTrackName');
+        const playerPlayBtn = document.getElementById('playerPlayBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeEl = document.getElementById('currentTime');
+        const durationEl = document.getElementById('duration');
 
         // Initialize
         loadMusicList();
@@ -483,6 +641,14 @@
         function renderMusicList(files) {
             musicList.innerHTML = files.map(file => `
                 <div class="music-item" data-key="${file.key}">
+                    <button class="play-btn" data-key="${file.key}" title="Play">
+                        <svg class="play-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <svg class="pause-icon" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" style="display: none;">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                        </svg>
+                    </button>
                     <div class="music-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
@@ -495,9 +661,22 @@
                 </div>
             `).join('');
 
-            // Add click handlers
+            // Add click handlers for selecting track
             document.querySelectorAll('.music-item').forEach(item => {
-                item.addEventListener('click', () => selectTrack(item.dataset.key));
+                item.addEventListener('click', (e) => {
+                    // Don't select if clicking play button
+                    if (!e.target.closest('.play-btn')) {
+                        selectTrack(item.dataset.key);
+                    }
+                });
+            });
+
+            // Add click handlers for play buttons
+            document.querySelectorAll('.play-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    togglePlay(btn.dataset.key);
+                });
             });
         }
 
@@ -610,6 +789,13 @@
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
 
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
         function showToast(message, type = 'info') {
             toast.textContent = message;
             toast.className = 'toast ' + type + ' show';
@@ -617,6 +803,109 @@
                 toast.classList.remove('show');
             }, 3000);
         }
+
+        // Audio Player Functions
+        async function togglePlay(key) {
+            if (currentlyPlayingKey === key && !audioElement.paused) {
+                // Pause current track
+                audioElement.pause();
+                updatePlayButtons(key, false);
+            } else if (currentlyPlayingKey === key && audioElement.paused) {
+                // Resume current track
+                audioElement.play();
+                updatePlayButtons(key, true);
+            } else {
+                // Play new track
+                await playTrack(key);
+            }
+        }
+
+        async function playTrack(key) {
+            try {
+                // Get presigned URL
+                const response = await fetch(`/music/play/${encodeURIComponent(key)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    showToast('Failed to load track', 'error');
+                    return;
+                }
+
+                // Update currently playing
+                if (currentlyPlayingKey) {
+                    updatePlayButtons(currentlyPlayingKey, false);
+                }
+                currentlyPlayingKey = key;
+
+                // Set audio source and play
+                audioElement.src = data.url;
+                audioElement.play();
+
+                // Show audio player
+                audioPlayer.classList.add('visible');
+                playerTrackName.textContent = key;
+                updatePlayButtons(key, true);
+                updatePlayerUI(true);
+
+            } catch (error) {
+                console.error('Play error:', error);
+                showToast('Failed to play track', 'error');
+            }
+        }
+
+        function updatePlayButtons(key, isPlaying) {
+            // Update list play button
+            const btn = document.querySelector(`.play-btn[data-key="${key}"]`);
+            if (btn) {
+                const playIcon = btn.querySelector('.play-icon');
+                const pauseIcon = btn.querySelector('.pause-icon');
+                btn.classList.toggle('playing', isPlaying);
+                playIcon.style.display = isPlaying ? 'none' : 'block';
+                pauseIcon.style.display = isPlaying ? 'block' : 'none';
+            }
+        }
+
+        function updatePlayerUI(isPlaying) {
+            playIcon.style.display = isPlaying ? 'none' : 'block';
+            pauseIcon.style.display = isPlaying ? 'block' : 'none';
+        }
+
+        // Audio Player Event Listeners
+        playerPlayBtn.addEventListener('click', () => {
+            if (currentlyPlayingKey) {
+                togglePlay(currentlyPlayingKey);
+            }
+        });
+
+        audioElement.addEventListener('timeupdate', () => {
+            const progress = (audioElement.currentTime / audioElement.duration) * 100;
+            progressFill.style.width = `${progress}%`;
+            currentTimeEl.textContent = formatTime(audioElement.currentTime);
+        });
+
+        audioElement.addEventListener('loadedmetadata', () => {
+            durationEl.textContent = formatTime(audioElement.duration);
+        });
+
+        audioElement.addEventListener('ended', () => {
+            updatePlayButtons(currentlyPlayingKey, false);
+            updatePlayerUI(false);
+            progressFill.style.width = '0%';
+        });
+
+        audioElement.addEventListener('pause', () => {
+            updatePlayerUI(false);
+        });
+
+        audioElement.addEventListener('play', () => {
+            updatePlayerUI(true);
+        });
+
+        progressBar.addEventListener('click', (e) => {
+            const rect = progressBar.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audioElement.currentTime = percent * audioElement.duration;
+        });
     </script>
 </body>
 </html>

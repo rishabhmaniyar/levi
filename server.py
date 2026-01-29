@@ -53,6 +53,21 @@ def list_music():
         logger.exception("Failed to list music files")
         return {"files": [], "error": str(e)}
 
+# ---------------- PLAY MUSIC ENDPOINT ----------------
+@app.get("/music/play/{s3_key:path}")
+def get_music_url(s3_key: str):
+    """Get a presigned URL to play music."""
+    try:
+        presigned_url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': S3_BUCKET, 'Key': s3_key},
+            ExpiresIn=3600  # 1 hour
+        )
+        return {"url": presigned_url}
+    except Exception as e:
+        logger.exception("Failed to get music URL")
+        return {"error": str(e)}
+
 # ---------------- STATIC FILES ----------------
 @app.get("/")
 def serve_frontend():

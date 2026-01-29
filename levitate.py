@@ -9,6 +9,7 @@ import tempfile
 import os
 import logging
 import uuid
+import random
 from datetime import datetime
 
 # ---------------- LOGGING ----------------
@@ -100,11 +101,17 @@ Cinematic wide shot, ultra detailed, no text, no watermark.
 """.strip()
 
 # ---------------- BEDROCK IMAGE GENERATION ----------------
-def generate_image(prompt: str) -> bytes:
-    logger.info("Calling Bedrock Titan Image Generator")
+def generate_image(prompt: str, size: int = 512) -> bytes:
+    """
+    Generate image using Bedrock Titan.
+    Size options: 512 (fast ~10-15s) or 1024 (slow ~25-40s)
+    """
+    logger.info(f"Calling Bedrock Titan Image Generator ({size}x{size})")
+    
+    # Random seed for variation on regeneration
+    seed = random.randint(0, 2147483647)
 
     response = bedrock.invoke_model(
-        # amazon.titan-image-generator-v2:0
         modelId="amazon.titan-image-generator-v2:0",
         contentType="application/json",
         accept="application/json",
@@ -115,10 +122,10 @@ def generate_image(prompt: str) -> bytes:
             },
             "imageGenerationConfig": {
                 "numberOfImages": 1,
-                "height": 1024,
-                "width": 1024,
-                "cfgScale": 8.0,
-                "seed": 0
+                "height": size,
+                "width": size,
+                "cfgScale": 7.0,
+                "seed": seed
             }
         })
     )
