@@ -172,15 +172,31 @@ class GenerateRequest(BaseModel):
     s3_key: str
 
 # ---------------- UPLOAD ENDPOINT ----------------
+MAX_FILE_SIZE = 1 * 1024 * 1024  # 1 MB
+
 @app.post("/upload")
 async def upload_mp3(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".mp3"):
         raise HTTPException(status_code=400, detail="Only .mp3 files are supported")
 
     try:
-        s3.upload_fileobj(file.file, S3_BUCKET, file.filename)
-        logger.info(f"Uploaded {file.filename} to S3")
+        # Read file content to check size
+        contents = await file.read()
+        file_size = len(contents)
+        
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"File too large. Maximum size is 1MB, got {file_size / (1024*1024):.2f}MB"
+            )
+        
+        # Upload to S3
+        from io import BytesIO
+        s3.upload_fileobj(BytesIO(contents), S3_BUCKET, file.filename)
+        logger.info(f"Uploaded {file.filename} to S3 ({file_size / 1024:.1f} KB)")
         return {"status": "uploaded", "s3_key": file.filename}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Upload failed")
         raise HTTPException(status_code=500, detail=str(e))

@@ -491,7 +491,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p>Drop MP3 file here or click to upload</p>
+                    <p>Drop MP3 file here or click to upload (max 1MB)</p>
                     <input type="file" id="fileInput" accept=".mp3">
                 </div>
 
@@ -609,16 +609,25 @@
             e.preventDefault();
             uploadZone.classList.remove('dragover');
             const file = e.dataTransfer.files[0];
-            if (file && file.name.toLowerCase().endsWith('.mp3')) {
-                uploadFile(file);
-            } else {
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.mp3')) {
                 showToast('Please upload an MP3 file', 'error');
+                return;
             }
+            if (file.size > 1 * 1024 * 1024) {
+                showToast('File too large. Maximum size is 1MB', 'error');
+                return;
+            }
+            uploadFile(file);
         });
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) {
-                uploadFile(e.target.files[0]);
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 1 * 1024 * 1024) {
+                showToast('File too large. Maximum size is 1MB', 'error');
+                return;
             }
+            uploadFile(file);
         });
 
         // Button Events
