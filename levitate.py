@@ -30,7 +30,7 @@ def root():
 AWS_REGION = "us-east-1"
 AWSS3_REGION = "ap-south-2"
 S3_BUCKET = "music-upload-bucket1"
-S3_COVER_BUCKET = "levitate-cover"
+S3_COVER_BUCKET = "output-covers"
 
 s3 = boto3.client("s3", region_name=AWSS3_REGION)
 
