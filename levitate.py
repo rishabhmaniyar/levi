@@ -112,7 +112,7 @@ def generate_image(prompt: str, size: int = 512) -> bytes:
     seed = random.randint(0, 2147483647)
 
     response = bedrock.invoke_model(
-        modelId="amazon.titan-image-generator-v2:0",
+        modelId="anthropic.claude-sonnet-4-20250514-v1:0",
         contentType="application/json",
         accept="application/json",
         body=json.dumps({
